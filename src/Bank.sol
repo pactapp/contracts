@@ -15,8 +15,8 @@ contract Bank is Owned {
     // Global Variables
     address public usdc;
 
-    uint256 public constant penalty = 10_00; // 10%
-    uint256 public constant protocolFee = 10_00; // 10% on penalty withdraws, or total 1% of withdraw amount
+    uint256 public constant PENALTY = 10_00; // 10%
+    uint256 public constant PROTOCOL_FEE = 10_00; // 10% on penalty withdraws, or total 1% of withdraw amount
 
     // Shares accounting
     uint256 public totalShares;
@@ -37,7 +37,9 @@ contract Bank is Owned {
 
         uint256 assetsBefore = getVaultAssetBalance();
 
-        IERC20(usdc).transferFrom(msg.sender, address(this), amount);
+        bool success = IERC20(usdc).transferFrom(msg.sender, address(this), amount);
+
+        require(success, "Transfer failed");
 
         uint256 sharesAlloted;
 
@@ -52,11 +54,42 @@ contract Bank is Owned {
         totalShares += sharesAlloted;
         shares[msg.sender] += sharesAlloted;
 
-        userPacts[msg.sender].push(Pact(sharesAlloted, block.timestamp + duration, true));
+        userPacts[msg.sender].push(
+            Pact({sharesAmount: sharesAlloted, unlockTime: block.timestamp + duration, isActive: true})
+        );
+    }
+
+    function withdraw(uint256 pactId) public returns (bool) {
+        Pact[] storage pacts = userPacts[msg.sender];
+
+        require(pactId < pacts.length, "Pact does not exist");
+
+        Pact storage pact = pacts[pactId];
+
+        require(pact.isActive, "Pact is not active");
+        require(pact.unlockTime <= block.timestamp, "Pact is not unlocked yet");
+
+        uint256 poolAssets = getVaultAssetBalance();
+        uint256 withdrawAmount = pact.sharesAmount * poolAssets / totalShares;
+
+        bool success = IERC20(usdc).transfer(msg.sender, withdrawAmount);
+
+        require(success, "Transfer failed");
+
+        pact.isActive = false;
+        shares[msg.sender] -= pact.sharesAmount;
+        totalShares -= pact.sharesAmount;
+        pact.sharesAmount = 0;
+
+        return true;
     }
 
     // Getter functions
     function getVaultAssetBalance() public view returns (uint256) {
         return IERC20(usdc).balanceOf(address(this));
+    }
+
+    function getUserPacts() public view returns (Pact[] memory) {
+        return userPacts[msg.sender];
     }
 }
