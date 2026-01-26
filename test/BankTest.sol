@@ -12,6 +12,18 @@ contract CounterTest is Test {
     address public owner;
     address public user1;
 
+    modifier depositUsdc() {
+        uint256 lockDuration = 30 * 24 * 60 * 60;
+        uint256 depositAmount = 100e6;
+
+        vm.startPrank(user1);
+        usdc.approve(address(bank), depositAmount);
+        bank.deposit(100e6, lockDuration);
+        vm.stopPrank();
+
+        _;
+    }
+
     function setUp() public {
         owner = makeAddr("owner");
         user1 = makeAddr("user1");
@@ -36,6 +48,42 @@ contract CounterTest is Test {
         vm.stopPrank();
 
         uint256 userShares = bank.shares(user1);
+        uint256 totalShares = bank.totalShares();
+
         assertEq(userShares, depositAmount);
+        assertEq(totalShares, depositAmount);
+    }
+
+    function testWithdraw() public depositUsdc {
+        vm.startPrank(user1);
+
+        Bank.Pact[] memory pacts = bank.getUserPacts();
+        uint256 pactId = pacts.length - 1;
+
+        Bank.Pact memory pact = pacts[pactId];
+
+        vm.warp(block.timestamp + pact.unlockTime);
+
+        bank.withdraw(pactId);
+
+        vm.stopPrank();
+
+        uint256 userShares = bank.shares(user1);
+        uint256 totalShares = bank.totalShares();
+
+        assertEq(userShares, 0);
+        assertEq(totalShares, 0);
+    }
+
+    function testCannotWithdrawBeforeDeadline() public depositUsdc {
+        vm.startPrank(user1);
+
+        Bank.Pact[] memory pacts = bank.getUserPacts();
+        uint256 pactId = pacts.length - 1;
+
+        vm.expectRevert("Pact is not unlocked yet");
+        bank.withdraw(pactId);
+
+        vm.stopPrank();
     }
 }
