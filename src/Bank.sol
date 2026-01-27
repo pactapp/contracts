@@ -26,8 +26,7 @@ contract Bank is Owned {
     mapping(address => Pact[]) public userPacts;
 
     // Function
-    constructor(address _usdc) Owned(owner) {
-        owner = msg.sender;
+    constructor(address _usdc) Owned(msg.sender) {
         usdc = _usdc;
     }
 
@@ -77,9 +76,7 @@ contract Bank is Owned {
         totalShares -= pact.sharesAmount;
         pact.sharesAmount = 0;
 
-        bool success = IERC20(usdc).transfer(msg.sender, withdrawAmount);
-
-        require(success, "Transfer failed");
+        require(IERC20(usdc).transfer(msg.sender, withdrawAmount), "Transfer failed");
 
         return true;
     }
