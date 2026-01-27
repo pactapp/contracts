@@ -81,6 +81,42 @@ contract Bank is Owned {
         return true;
     }
 
+    function forceWithdraw(uint256 pactId) public returns (bool) {
+        Pact[] storage pacts = userPacts[msg.sender];
+
+        require(pactId < pacts.length, "Pact does not exist");
+
+        Pact storage pact = pacts[pactId];
+
+        require(pact.isActive, "Pact is not active");
+        require(pact.unlockTime > block.timestamp, "Use normal withdraw");
+
+        uint256 poolAssets = getVaultAssetBalance();
+        uint256 pactShares = pact.sharesAmount;
+        uint256 totalSharesBefore = totalShares;
+        uint256 pactValue = pactShares * poolAssets / totalSharesBefore;
+        uint256 penaltyAmount = pactValue * PENALTY / 10_000;
+        uint256 protocolCut = penaltyAmount * PROTOCOL_FEE / 10_000;
+        uint256 withdrawAmount = pactValue - penaltyAmount;
+
+        pact.isActive = false;
+        pact.sharesAmount = 0;
+        shares[msg.sender] -= pactShares;
+        totalShares -= pactShares;
+
+        require(IERC20(usdc).transfer(msg.sender, withdrawAmount), "User transfer failed");
+
+        if (protocolCut > 0) {
+            uint256 remainingAssets = poolAssets - withdrawAmount;
+            uint256 protocolShares = totalShares == 0 ? protocolCut : protocolCut * totalShares / remainingAssets;
+
+            shares[owner] += protocolShares;
+            totalShares += protocolShares;
+        }
+
+        return true;
+    }
+
     // Getter functions
     function getVaultAssetBalance() public view returns (uint256) {
         return IERC20(usdc).balanceOf(address(this));
