@@ -86,4 +86,132 @@ contract CounterTest is Test {
 
         vm.stopPrank();
     }
+
+    function testForceWithdraw() public depositUsdc {
+        vm.startPrank(user1);
+
+        Bank.Pact[] memory pacts = bank.getUserPacts();
+        uint256 pactId = pacts.length - 1;
+
+        uint256 totalSharesBefore = bank.totalShares();
+        uint256 userBalanceBefore = usdc.balanceOf(user1);
+
+        bank.forceWithdraw(pactId);
+
+        vm.stopPrank();
+
+        uint256 userSharesAfter = bank.shares(user1);
+        uint256 totalSharesAfter = bank.totalShares();
+        uint256 userBalanceAfter = usdc.balanceOf(user1);
+
+        assertEq(userSharesAfter, 0);
+
+        uint256 expectedWithdraw = 100e6 * 9000 / 10_000;
+        assertEq(userBalanceAfter - userBalanceBefore, expectedWithdraw);
+
+        assertGt(bank.shares(owner), 0);
+
+        assertLt(totalSharesAfter, totalSharesBefore);
+        assertGt(totalSharesAfter, 0);
+    }
+
+    function testForceWithdrawPenaltyDistribution() public depositUsdc {
+        vm.startPrank(user1);
+
+        Bank.Pact[] memory pacts = bank.getUserPacts();
+        uint256 pactId = pacts.length - 1;
+
+        uint256 poolAssetsBefore = bank.getVaultAssetBalance();
+
+        bank.forceWithdraw(pactId);
+
+        vm.stopPrank();
+
+        uint256 pactValue = 100e6;
+        uint256 penaltyAmount = pactValue * 10_00 / 10_000;
+        uint256 protocolCut = penaltyAmount * 10_00 / 10_000;
+        uint256 withdrawAmount = pactValue - penaltyAmount;
+
+        uint256 expectedProtocolShares = protocolCut * 100e6 / poolAssetsBefore;
+
+        assertEq(bank.shares(owner), expectedProtocolShares);
+        assertEq(usdc.balanceOf(user1), 900e6 + withdrawAmount);
+    }
+
+    function testCannotForceWithdrawAfterUnlockTime() public depositUsdc {
+        vm.startPrank(user1);
+
+        Bank.Pact[] memory pacts = bank.getUserPacts();
+        uint256 pactId = pacts.length - 1;
+        Bank.Pact memory pact = pacts[pactId];
+
+        vm.warp(block.timestamp + pact.unlockTime + 1);
+
+        vm.expectRevert("Use normal withdraw");
+        bank.forceWithdraw(pactId);
+
+        vm.stopPrank();
+    }
+
+    function testCannotForceWithdrawInactivePact() public depositUsdc {
+        vm.startPrank(user1);
+
+        Bank.Pact[] memory pacts = bank.getUserPacts();
+        uint256 pactId = pacts.length - 1;
+        Bank.Pact memory pact = pacts[pactId];
+
+        vm.warp(block.timestamp + pact.unlockTime);
+        bank.withdraw(pactId);
+
+        vm.expectRevert("Pact is not active");
+        bank.forceWithdraw(pactId);
+
+        vm.stopPrank();
+    }
+
+    function testCannotForceWithdrawNonexistentPact() public depositUsdc {
+        vm.startPrank(user1);
+
+        vm.expectRevert("Pact does not exist");
+        bank.forceWithdraw(999);
+
+        vm.stopPrank();
+    }
+
+    function testForceWithdrawMultipleUsers() public depositUsdc {
+        address user2 = makeAddr("user2");
+        usdc.mint(user2, 1_000e6);
+
+        uint256 lockDuration = 30 * 24 * 60 * 60;
+
+        vm.startPrank(user2);
+        usdc.approve(address(bank), 200e6);
+        bank.deposit(200e6, lockDuration);
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+        bank.forceWithdraw(0);
+        vm.stopPrank();
+
+        uint256 user2Shares = bank.shares(user2);
+        assertGt(user2Shares, 0);
+
+        assertGt(bank.shares(owner), 0);
+    }
+
+    function testForceWithdrawZeroPenaltyEdgeCase() public {
+        uint256 lockDuration = 30 * 24 * 60 * 60;
+        uint256 tinyDeposit = 100;
+
+        usdc.mint(user1, tinyDeposit);
+
+        vm.startPrank(user1);
+        usdc.approve(address(bank), tinyDeposit);
+        bank.deposit(tinyDeposit, lockDuration);
+
+        bank.forceWithdraw(0);
+        vm.stopPrank();
+
+        assertEq(bank.shares(user1), 0);
+    }
 }
