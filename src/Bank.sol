@@ -72,14 +72,14 @@ contract Bank is Owned {
         uint256 poolAssets = getVaultAssetBalance();
         uint256 withdrawAmount = pact.sharesAmount * poolAssets / totalShares;
 
-        bool success = IERC20(usdc).transfer(msg.sender, withdrawAmount);
-
-        require(success, "Transfer failed");
-
         pact.isActive = false;
         shares[msg.sender] -= pact.sharesAmount;
         totalShares -= pact.sharesAmount;
         pact.sharesAmount = 0;
+
+        bool success = IERC20(usdc).transfer(msg.sender, withdrawAmount);
+
+        require(success, "Transfer failed");
 
         return true;
     }
