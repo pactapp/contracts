@@ -8,31 +8,40 @@ import {IBank} from "../interface/IBank.sol";
 
 contract Bank is Owned, IBank {
 
-    // Types
+    /* -------------------------------------------------------------------------- */
+    /*                                     TYPES                                  */
+    /* -------------------------------------------------------------------------- */
     struct Pact {
         uint256 sharesAmount;
         uint256 unlockTime;
         bool isActive;
     }
 
-    // Global Variables
-    address public usdc;
-
-    uint256 public constant PENALTY = 10_00; // 10%
+    /* -------------------------------------------------------------------------- */
+    /*                                   CONSTANTS                                */
+    /* -------------------------------------------------------------------------- */
+    uint256 public constant PENALTY = 10_00;      // 10%
     uint256 public constant PROTOCOL_FEE = 10_00; // 10% on penalty withdraws, or total 1% of withdraw amount
 
-    // Shares accounting
+    /* -------------------------------------------------------------------------- */
+    /*                                STATE VARIABLES                             */
+    /* -------------------------------------------------------------------------- */
+    address public usdc;
+
     uint256 public totalShares;
     mapping(address => uint256) public shares;
-
-    // Pacts management
     mapping(address => Pact[]) public userPacts;
 
-    // Function
+    /* -------------------------------------------------------------------------- */
+    /*                                 CONSTRUCTOR                                */
+    /* -------------------------------------------------------------------------- */
     constructor(address _usdc) Owned(msg.sender) {
         usdc = _usdc;
     }
 
+    /* -------------------------------------------------------------------------- */
+    /*                                  FUNCTIONS                                 */
+    /* -------------------------------------------------------------------------- */
     function deposit(uint256 amount, uint256 duration) public {
         require(amount > 0, "Deposit must be more than 0");
         require(duration > 0, "Deposit duration must be more than 0");
@@ -149,7 +158,9 @@ contract Bank is Owned, IBank {
         emit ProtocolFeeWithdrawn(owner, protocolShares, withdrawAmount);
     }
 
-    // Getter functions
+    /* -------------------------------------------------------------------------- */
+    /*                              GETTER FUNCTIONS                              */
+    /* -------------------------------------------------------------------------- */
     function getVaultAssetBalance() public view returns (uint256) {
         return IERC20(usdc).balanceOf(address(this));
     }
