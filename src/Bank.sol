@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.30;
+pragma solidity 0.8.30;
 
 import {Owned} from "solmate/auth/Owned.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract Bank is Owned {
+import {IBank} from "../interface/IBank.sol";
+
+contract Bank is Owned, IBank {
+
     // Types
     struct Pact {
         uint256 sharesAmount;
@@ -53,9 +56,14 @@ contract Bank is Owned {
         totalShares += sharesAlloted;
         shares[msg.sender] += sharesAlloted;
 
+        uint256 pactId = userPacts[msg.sender].length;
+        uint256 unlockTime = block.timestamp + duration;
+
         userPacts[msg.sender].push(
             Pact({sharesAmount: sharesAlloted, unlockTime: block.timestamp + duration, isActive: true})
         );
+
+        emit Deposited(msg.sender, amount, sharesAlloted, unlockTime, pactId);
     }
 
     function withdraw(uint256 pactId) public returns (bool) {
@@ -70,6 +78,7 @@ contract Bank is Owned {
 
         uint256 poolAssets = getVaultAssetBalance();
         uint256 withdrawAmount = pact.sharesAmount * poolAssets / totalShares;
+        uint256 sharesRedeemed = pact.sharesAmount;
 
         pact.isActive = false;
         shares[msg.sender] -= pact.sharesAmount;
@@ -77,6 +86,8 @@ contract Bank is Owned {
         pact.sharesAmount = 0;
 
         require(IERC20(usdc).transfer(msg.sender, withdrawAmount), "Transfer failed");
+
+        emit Withdrawn(msg.sender, pactId, sharesRedeemed, withdrawAmount);
 
         return true;
     }
@@ -114,6 +125,8 @@ contract Bank is Owned {
             totalShares += protocolShares;
         }
 
+        emit ForceWithdrawn(msg.sender, pactId, pactShares, withdrawAmount, penaltyAmount, protocolCut);
+
         return true;
     }
 
@@ -132,6 +145,8 @@ contract Bank is Owned {
         totalShares -= protocolShares;
 
         require(IERC20(usdc).transfer(owner, withdrawAmount), "User transfer failed");
+
+        emit ProtocolFeeWithdrawn(owner, protocolShares, withdrawAmount);
     }
 
     // Getter functions
