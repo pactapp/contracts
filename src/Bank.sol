@@ -117,6 +117,23 @@ contract Bank is Owned {
         return true;
     }
 
+    function withdrawProtocolFee() public onlyOwner {
+        uint256 protocolShares = shares[owner];
+
+        require(protocolShares > 0, "No fee collected");
+        require(totalShares > 0, "No shares in system");
+
+        uint256 poolAssets = getVaultAssetBalance();
+        uint256 withdrawAmount = protocolShares * poolAssets / totalShares;
+
+        require(withdrawAmount > 0, "Withdraw amount is 0");
+
+        shares[owner] = 0;
+        totalShares -= protocolShares;
+
+        require(IERC20(usdc).transfer(owner, withdrawAmount), "User transfer failed");
+    }
+
     // Getter functions
     function getVaultAssetBalance() public view returns (uint256) {
         return IERC20(usdc).balanceOf(address(this));
