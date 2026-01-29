@@ -4,6 +4,7 @@ pragma solidity ^0.8.30;
 import {Test} from "forge-std/Test.sol";
 import {Bank} from "../src/Bank.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
+import {IBank} from "../interface/IBank.sol";
 
 contract CounterTest is Test {
     Bank public bank;
@@ -81,7 +82,7 @@ contract CounterTest is Test {
         Bank.Pact[] memory pacts = bank.getUserPacts();
         uint256 pactId = pacts.length - 1;
 
-        vm.expectRevert("Pact is not unlocked yet");
+        vm.expectRevert(IBank.PactDurationPending.selector);
         bank.withdraw(pactId);
 
         vm.stopPrank();
@@ -147,7 +148,7 @@ contract CounterTest is Test {
 
         vm.warp(block.timestamp + pact.unlockTime + 1);
 
-        vm.expectRevert("Use normal withdraw");
+        vm.expectRevert(IBank.UseNormalWithdraw.selector);
         bank.forceWithdraw(pactId);
 
         vm.stopPrank();
@@ -163,7 +164,7 @@ contract CounterTest is Test {
         vm.warp(block.timestamp + pact.unlockTime);
         bank.withdraw(pactId);
 
-        vm.expectRevert("Pact is not active");
+        vm.expectRevert(IBank.PactNotActive.selector);
         bank.forceWithdraw(pactId);
 
         vm.stopPrank();
@@ -172,7 +173,7 @@ contract CounterTest is Test {
     function testCannotForceWithdrawNonexistentPact() public depositUsdc {
         vm.startPrank(user1);
 
-        vm.expectRevert("Pact does not exist");
+        vm.expectRevert(IBank.InvalidPactId.selector);
         bank.forceWithdraw(999);
 
         vm.stopPrank();
@@ -246,7 +247,7 @@ contract CounterTest is Test {
 
     function testCannotWithdrawProtocolFeeWithNoFees() public {
         vm.prank(owner);
-        vm.expectRevert("No fee collected");
+        vm.expectRevert(IBank.NoProtocolFees.selector);
         bank.withdrawProtocolFee();
     }
 
@@ -382,7 +383,7 @@ contract CounterTest is Test {
         bank.withdrawProtocolFee();
 
         vm.prank(owner);
-        vm.expectRevert("No fee collected");
+        vm.expectRevert(IBank.NoProtocolFees.selector);
         bank.withdrawProtocolFee();
     }
 
