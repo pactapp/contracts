@@ -31,4 +31,16 @@ interface IBank {
         uint256 sharesRedeemed,
         uint256 amountReceived
     );
+
+    error ZeroAddress();
+    error ZeroAmount();
+    error ZeroDuration();
+    error InsufficientShares();
+    error PactNotActive();
+    error PactDurationPending();
+    error UseNormalWithdraw();
+    error NoSharesAllotted();
+    error TransferFailed();
+    error InvalidPactId();
+    error NoProtocolFees();
 }

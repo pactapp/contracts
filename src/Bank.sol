@@ -36,6 +36,7 @@ contract Bank is Owned, IBank {
     /*                                 CONSTRUCTOR                                */
     /* -------------------------------------------------------------------------- */
     constructor(address _usdc) Owned(msg.sender) {
+        require(_usdc != address(0), ZeroAddress());
         usdc = _usdc;
     }
 
@@ -43,14 +44,12 @@ contract Bank is Owned, IBank {
     /*                                  FUNCTIONS                                 */
     /* -------------------------------------------------------------------------- */
     function deposit(uint256 amount, uint256 duration) public {
-        require(amount > 0, "Deposit must be more than 0");
-        require(duration > 0, "Deposit duration must be more than 0");
+        require(amount > 0, ZeroAmount());
+        require(duration > 0, ZeroDuration());
 
         uint256 assetsBefore = getVaultAssetBalance();
 
-        bool success = IERC20(usdc).transferFrom(msg.sender, address(this), amount);
-
-        require(success, "Transfer failed");
+        require(IERC20(usdc).transferFrom(msg.sender, address(this), amount), TransferFailed());
 
         uint256 sharesAlloted;
 
@@ -60,7 +59,7 @@ contract Bank is Owned, IBank {
             sharesAlloted = amount * totalShares / assetsBefore;
         }
 
-        require(sharesAlloted > 0, "Shares must be more than 0");
+        require(sharesAlloted > 0, InsufficientShares());
 
         totalShares += sharesAlloted;
         shares[msg.sender] += sharesAlloted;
@@ -78,12 +77,12 @@ contract Bank is Owned, IBank {
     function withdraw(uint256 pactId) public returns (bool) {
         Pact[] storage pacts = userPacts[msg.sender];
 
-        require(pactId < pacts.length, "Pact does not exist");
+        require(pactId < pacts.length, InvalidPactId());
 
         Pact storage pact = pacts[pactId];
 
-        require(pact.isActive, "Pact is not active");
-        require(pact.unlockTime <= block.timestamp, "Pact is not unlocked yet");
+        require(pact.isActive, PactNotActive());
+        require(pact.unlockTime <= block.timestamp, PactDurationPending());
 
         uint256 poolAssets = getVaultAssetBalance();
         uint256 withdrawAmount = pact.sharesAmount * poolAssets / totalShares;
@@ -94,7 +93,7 @@ contract Bank is Owned, IBank {
         totalShares -= pact.sharesAmount;
         pact.sharesAmount = 0;
 
-        require(IERC20(usdc).transfer(msg.sender, withdrawAmount), "Transfer failed");
+        require(IERC20(usdc).transfer(msg.sender, withdrawAmount), TransferFailed());
 
         emit Withdrawn(msg.sender, pactId, sharesRedeemed, withdrawAmount);
 
@@ -104,12 +103,12 @@ contract Bank is Owned, IBank {
     function forceWithdraw(uint256 pactId) public returns (bool) {
         Pact[] storage pacts = userPacts[msg.sender];
 
-        require(pactId < pacts.length, "Pact does not exist");
+        require(pactId < pacts.length, InvalidPactId());
 
         Pact storage pact = pacts[pactId];
 
-        require(pact.isActive, "Pact is not active");
-        require(pact.unlockTime > block.timestamp, "Use normal withdraw");
+        require(pact.isActive, PactNotActive());
+        require(pact.unlockTime > block.timestamp, UseNormalWithdraw());
 
         uint256 poolAssets = getVaultAssetBalance();
         uint256 pactShares = pact.sharesAmount;
@@ -124,7 +123,7 @@ contract Bank is Owned, IBank {
         shares[msg.sender] -= pactShares;
         totalShares -= pactShares;
 
-        require(IERC20(usdc).transfer(msg.sender, withdrawAmount), "User transfer failed");
+        require(IERC20(usdc).transfer(msg.sender, withdrawAmount), TransferFailed());
 
         if (protocolCut > 0) {
             uint256 remainingAssets = poolAssets - withdrawAmount;
@@ -142,18 +141,18 @@ contract Bank is Owned, IBank {
     function withdrawProtocolFee() public onlyOwner {
         uint256 protocolShares = shares[owner];
 
-        require(protocolShares > 0, "No fee collected");
-        require(totalShares > 0, "No shares in system");
+        require(protocolShares > 0, NoProtocolFees());
+        require(totalShares > 0, NoSharesAllotted());
 
         uint256 poolAssets = getVaultAssetBalance();
         uint256 withdrawAmount = protocolShares * poolAssets / totalShares;
 
-        require(withdrawAmount > 0, "Withdraw amount is 0");
+        require(withdrawAmount > 0, ZeroAmount());
 
         shares[owner] = 0;
         totalShares -= protocolShares;
 
-        require(IERC20(usdc).transfer(owner, withdrawAmount), "User transfer failed");
+        require(IERC20(usdc).transfer(owner, withdrawAmount),TransferFailed());
 
         emit ProtocolFeeWithdrawn(owner, protocolShares, withdrawAmount);
     }
