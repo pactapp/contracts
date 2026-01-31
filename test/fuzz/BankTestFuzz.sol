@@ -56,7 +56,7 @@ contract BankFuzzTest is Test {
         assertEq(userSharesAfter, totalSharesAfter, "User shares should equal total shares");
 
         vm.startPrank(user1);
-        Bank.Pact[] memory pacts = bank.getUserPacts();
+        Bank.Pact[] memory pacts = bank.getUserPacts(user1);
         vm.stopPrank();
 
         assertEq(pacts.length, 1, "Should have created 1 pact");
@@ -159,7 +159,7 @@ contract BankFuzzTest is Test {
         vm.startPrank(user1);
         usdc.approve(address(bank), depositAmount);
         bank.deposit(depositAmount, duration);
-         Bank.Pact[] memory pacts = bank.getUserPacts();
+        Bank.Pact[] memory pacts = bank.getUserPacts(user1);
         vm.stopPrank();
 
         
@@ -192,7 +192,7 @@ contract BankFuzzTest is Test {
         uint256 sharesAfterSecond = bank.shares(user1);
 
         vm.startPrank(user1);
-        Bank.Pact[] memory pacts = bank.getUserPacts();
+        Bank.Pact[] memory pacts = bank.getUserPacts(user1);
         vm.stopPrank();
 
         assertEq(pacts.length, 2, "Should have 2 pacts");

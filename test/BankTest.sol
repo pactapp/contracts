@@ -58,7 +58,7 @@ contract CounterTest is Test {
     function testWithdraw() public depositUsdc {
         vm.startPrank(user1);
 
-        Bank.Pact[] memory pacts = bank.getUserPacts();
+       Bank.Pact[] memory pacts = bank.getUserPacts(user1);
         uint256 pactId = pacts.length - 1;
 
         Bank.Pact memory pact = pacts[pactId];
@@ -79,7 +79,7 @@ contract CounterTest is Test {
     function testCannotWithdrawBeforeDeadline() public depositUsdc {
         vm.startPrank(user1);
 
-        Bank.Pact[] memory pacts = bank.getUserPacts();
+       Bank.Pact[] memory pacts = bank.getUserPacts(user1);
         uint256 pactId = pacts.length - 1;
 
         vm.expectRevert(IBank.PactDurationPending.selector);
@@ -91,7 +91,7 @@ contract CounterTest is Test {
     function testForceWithdraw() public depositUsdc {
         vm.startPrank(user1);
 
-        Bank.Pact[] memory pacts = bank.getUserPacts();
+        Bank.Pact[] memory pacts = bank.getUserPacts(user1);
         uint256 pactId = pacts.length - 1;
 
         uint256 totalSharesBefore = bank.totalShares();
@@ -119,7 +119,7 @@ contract CounterTest is Test {
     function testForceWithdrawPenaltyDistribution() public depositUsdc {
         vm.startPrank(user1);
 
-        Bank.Pact[] memory pacts = bank.getUserPacts();
+        Bank.Pact[] memory pacts = bank.getUserPacts(user1);
         uint256 pactId = pacts.length - 1;
 
         uint256 poolAssetsBefore = bank.getVaultAssetBalance();
@@ -142,7 +142,7 @@ contract CounterTest is Test {
     function testCannotForceWithdrawAfterUnlockTime() public depositUsdc {
         vm.startPrank(user1);
 
-        Bank.Pact[] memory pacts = bank.getUserPacts();
+        Bank.Pact[] memory pacts = bank.getUserPacts(user1);
         uint256 pactId = pacts.length - 1;
         Bank.Pact memory pact = pacts[pactId];
 
@@ -157,7 +157,7 @@ contract CounterTest is Test {
     function testCannotForceWithdrawInactivePact() public depositUsdc {
         vm.startPrank(user1);
 
-        Bank.Pact[] memory pacts = bank.getUserPacts();
+        Bank.Pact[] memory pacts = bank.getUserPacts(user1);
         uint256 pactId = pacts.length - 1;
         Bank.Pact memory pact = pacts[pactId];
 

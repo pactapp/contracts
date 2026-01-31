@@ -164,7 +164,7 @@ contract Bank is Owned, IBank {
         return IERC20(usdc).balanceOf(address(this));
     }
 
-    function getUserPacts() public view returns (Pact[] memory) {
-        return userPacts[msg.sender];
+    function getUserPacts(address user) external view returns (Pact[] memory) {
+        return userPacts[user];
     }
 }
